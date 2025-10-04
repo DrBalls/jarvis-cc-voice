@@ -151,6 +151,7 @@ Run `./demo.sh` to hear all the different voice announcements in action!
 
 ## Environment Variables
 
+### macOS/Linux
 ```bash
 # ElevenLabs Configuration
 export ELEVENLABS_API_KEY="your-api-key"
@@ -165,6 +166,21 @@ export ELEVENLABS_VOICE_ALERT="voice-id-for-alerts"
 
 # Playback Configuration
 export CC_VOICE_PLAYER="afplay"  # or "say", "ffplay", "pwsh"
+```
+
+### Windows
+On Windows, the installer automatically adds your API key to `~/.local/bin/cc-voice.cmd`. To manually update:
+
+1. Edit `C:\Users\YourName\.local\bin\cc-voice.cmd`
+2. Update the `set ELEVENLABS_API_KEY=...` line
+3. Restart Claude Code
+
+```batch
+@echo off
+set ELEVENLABS_API_KEY=your-api-key
+set ELEVENLABS_VOICE_ID=ZwQsH4li5bkOUTP3m3d1
+set ELEVENLABS_MODEL_ID=eleven_flash_v2_5
+node "%~dp0cc-voice" %*
 ```
 
 ## Supported Event Types

@@ -154,7 +154,25 @@ if [[ "$has_key" =~ ^[Yy]$ ]]; then
     echo ""
     read -p "Enter your ElevenLabs API key: " api_key
 
-    # Add to shell profile
+    # On Windows, update the .cmd wrapper with API key
+    if [[ "$OS" == "windows" ]]; then
+        cat > "$INSTALL_DIR/cc-voice.cmd" << CMDEOF
+@echo off
+REM JARVIS Voice System - Windows wrapper for cc-voice
+
+REM Set ElevenLabs environment variables
+set ELEVENLABS_API_KEY=$api_key
+set ELEVENLABS_VOICE_ID=ZwQsH4li5bkOUTP3m3d1
+set ELEVENLABS_MODEL_ID=eleven_flash_v2_5
+
+REM Run cc-voice with the environment variables set
+node "%~dp0cc-voice" %*
+CMDEOF
+        echo "✓ ElevenLabs config added to cc-voice.cmd"
+        echo ""
+    fi
+
+    # Add to shell profile (for macOS/Linux, and for bash sessions on Windows)
     SHELL_PROFILE=""
     if [ -f "$HOME/.zshrc" ]; then
         SHELL_PROFILE="$HOME/.zshrc"
@@ -172,8 +190,12 @@ if [[ "$has_key" =~ ^[Yy]$ ]]; then
         echo "export ELEVENLABS_MODEL_ID=\"eleven_flash_v2_5\"" >> "$SHELL_PROFILE"
         echo "" >> "$SHELL_PROFILE"
 
-        echo "✓ ElevenLabs config added to $SHELL_PROFILE"
-        echo "  Run: source $SHELL_PROFILE"
+        if [[ "$OS" == "windows" ]]; then
+            echo "✓ ElevenLabs config also added to $SHELL_PROFILE (for bash sessions)"
+        else
+            echo "✓ ElevenLabs config added to $SHELL_PROFILE"
+            echo "  Run: source $SHELL_PROFILE"
+        fi
         echo ""
     else
         echo "⚠️  Could not find shell profile"
