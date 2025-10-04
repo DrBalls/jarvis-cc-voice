@@ -87,6 +87,106 @@ function detectContext() {
     return "Initiating build process";
   }
 
+  // NPM/Package manager operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(npm|yarn|bun|pnpm)\s+install\b/)) {
+      return isPreEvent ? "Installing dependencies" : "Dependencies installed";
+    }
+    if (commandLower.match(/\b(npm|yarn|bun|pnpm)\s+run\s+(\w+)/)) {
+      const script = commandLower.match(/\b(npm|yarn|bun|pnpm)\s+run\s+(\w+)/)?.[2];
+      return isPreEvent ? `Running ${script} script` : `${script} script complete`;
+    }
+    if (commandLower.match(/\b(npm|yarn|bun)\s+start\b/)) {
+      return isPreEvent ? "Starting development server" : "Server started";
+    }
+  }
+
+  // Directory operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\bpwd\b/)) {
+      return isPreEvent ? "Checking current directory" : "Directory identified";
+    }
+    if (commandLower.match(/\bcd\s+/)) {
+      return isPreEvent ? "Changing directory" : "Directory changed";
+    }
+    if (commandLower.match(/\b(ls|dir)\b/)) {
+      return isPreEvent ? "Listing directory contents" : "Directory listing complete";
+    }
+    if (commandLower.match(/\bmkdir\b/)) {
+      return isPreEvent ? "Creating directory" : "Directory created";
+    }
+  }
+
+  // File operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(cat|head|tail|less|more)\s+/)) {
+      return isPreEvent ? "Reading file" : "File read complete";
+    }
+    if (commandLower.match(/\b(cp|copy)\s+/)) {
+      return isPreEvent ? "Copying file" : "File copied";
+    }
+    if (commandLower.match(/\b(mv|move|ren|rename)\s+/)) {
+      return isPreEvent ? "Moving file" : "File moved";
+    }
+    if (commandLower.match(/\b(rm|del|delete)\s+/)) {
+      return isPreEvent ? "Removing file" : "File removed";
+    }
+    if (commandLower.match(/\btouch\b/)) {
+      return isPreEvent ? "Creating file" : "File created";
+    }
+  }
+
+  // Search operations (when using bash grep, not Grep tool)
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(grep|rg|ag|ack)\s+/)) {
+      return isPreEvent ? "Searching files" : "Search complete";
+    }
+    if (commandLower.match(/\bfind\s+/)) {
+      return isPreEvent ? "Searching for files" : "File search complete";
+    }
+  }
+
+  // Process operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(ps|top|htop)\b/)) {
+      return isPreEvent ? "Checking processes" : "Process list retrieved";
+    }
+    if (commandLower.match(/\bkill\b/)) {
+      return isPreEvent ? "Terminating process" : "Process terminated";
+    }
+  }
+
+  // Network operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(curl|wget)\s+/)) {
+      return isPreEvent ? "Fetching remote resource" : "Resource fetched";
+    }
+    if (commandLower.match(/\bping\s+/)) {
+      return isPreEvent ? "Testing network connection" : "Network test complete";
+    }
+  }
+
+  // System info
+  if (tool === "Bash") {
+    if (commandLower.match(/\b(which|whereis|type)\s+/)) {
+      return isPreEvent ? "Locating command" : "Command located";
+    }
+    if (commandLower.match(/\b(env|printenv)\b/)) {
+      return isPreEvent ? "Checking environment variables" : "Environment retrieved";
+    }
+    if (commandLower.match(/\b(chmod|chown)\s+/)) {
+      return isPreEvent ? "Modifying permissions" : "Permissions updated";
+    }
+  }
+
+  // Docker operations
+  if (tool === "Bash") {
+    if (commandLower.match(/\bdocker\s+(build|run|start|stop|ps|exec)/)) {
+      const op = commandLower.match(/\bdocker\s+(build|run|start|stop|ps|exec)/)?.[1];
+      return isPreEvent ? `Docker ${op} initiating` : `Docker ${op} complete`;
+    }
+  }
+
   return null;
 }
 
