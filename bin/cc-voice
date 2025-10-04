@@ -332,8 +332,12 @@ function play(file) {
       `ffplay -nodisp -autoexit -loglevel quiet "${file}"`
     );
   } else if (platform === "windows") {
+    // Windows: Use PowerShell MediaPlayer with explicit Play() call
+    const winPath = file.replace(/\//g, '\\');
     tries.push(
-      `powershell -NoProfile -Command "$player = New-Object System.Media.SoundPlayer '${file}'; $player.PlaySync()"`,
+      // PowerShell MediaPlayer - call Play() after Open()
+      `powershell -NoProfile -WindowStyle Hidden -Command "Add-Type -AssemblyName PresentationCore; $m = New-Object System.Windows.Media.MediaPlayer; $m.Open('${winPath}'); $m.Play(); Start-Sleep -Milliseconds 1500"`,
+      // Fallback: ffplay
       `ffplay -nodisp -autoexit -loglevel quiet "${file}"`
     );
   } else {
@@ -403,7 +407,11 @@ async function main() {
 
   // 1) try cache
   if (fs.existsSync(cachePath)) {
-    if (!play(cachePath)) {
+    const playSuccess = play(cachePath);
+    if (!playSuccess) {
+      // DEBUG: Log playback failure (remove in production)
+      // console.error(`[cc-voice] Playback failed for cached file: ${cachePath}`);
+
       // last resort: system TTS of text
       if (!speakText(phrase)) {
         console.log(phrase);
@@ -417,7 +425,11 @@ async function main() {
     try {
       const audio = await fetchTTS(phrase);
       fs.writeFileSync(cachePath, audio);
-      if (!play(cachePath)) {
+      const playSuccess = play(cachePath);
+      if (!playSuccess) {
+        // DEBUG: Log playback failure
+        // console.error(`[cc-voice] Playback failed for new file: ${cachePath}`);
+
         // fallback to system TTS if player chain fails
         if (!speakText(phrase)) {
           console.log(phrase);
