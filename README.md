@@ -18,6 +18,7 @@ Restart Claude Code and start coding with voice feedback!
 
 - **Node.js** (v16 or higher)
 - **Claude Code** (latest version)
+- **Windows only**: FFmpeg (for MP3 playback) - Install with: `winget install --id=Gyan.FFmpeg`
 - **Optional**: ElevenLabs API key for premium AI voices (falls back to system TTS)
 
 ## 🚀 Installation
@@ -233,6 +234,11 @@ node "%~dp0cc-voice" %*
 - The installer now automatically uses `node` to run the script
 - If hooks were installed before the fix, run: `node update-hooks.cjs` from the repo
 - This updates settings.json to use `node ~/.local/bin/cc-voice` instead of just `cc-voice`
+
+**Windows: Hearing TTS fallback instead of ElevenLabs voice?**
+- You need ffplay for MP3 playback. Install with: `winget install --id=Gyan.FFmpeg`
+- After installation, the `.cmd` wrapper includes ffplay in PATH automatically
+- Restart Claude Code after installing ffmpeg
 
 **Hearing generic phrases instead of specific ones?**
 - Restart Claude completely (exit terminal and relaunch)
