@@ -210,8 +210,13 @@ export CC_VOICE_PLAYER="afplay"  # or "say", "ffplay", "pwsh"
 
 **No sound playing?**
 - Check that `cc-voice` is executable: `chmod +x ~/.local/bin/cc-voice`
-- Verify ElevenLabs API key is set (or macOS `say` command works)
+- Verify ElevenLabs API key is set (or system TTS works)
 - Check cache directory exists: `ls /tmp/cc-voice-cache`
+
+**Windows: "cc-voice is not recognized" error?**
+- The installer now automatically uses `node` to run the script
+- If hooks were installed before the fix, run: `node update-hooks.cjs` from the repo
+- This updates settings.json to use `node ~/.local/bin/cc-voice` instead of just `cc-voice`
 
 **Hearing generic phrases instead of specific ones?**
 - Restart Claude completely (exit terminal and relaunch)

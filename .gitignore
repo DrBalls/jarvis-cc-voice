@@ -33,3 +33,6 @@ build/
 # Backups
 *.backup
 *.bak
+
+# Local Claude settings
+.claude/

@@ -304,29 +304,68 @@ const cachePath = path.join(cacheDir, `${cacheKey}.mp3`);
 function tryExec(cmd) {
   try { execSync(cmd, { stdio: "ignore" }); return true; } catch { return false; }
 }
+
+function detectPlatform() {
+  const platform = os.platform();
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "windows";
+  return "linux";
+}
+
 function play(file) {
   const preferred = playbackFromArgs || process.env.CC_VOICE_PLAYER || "";
+  const platform = detectPlatform();
   const tries = [];
 
   if (preferred) {
     if (preferred === "afplay") tries.push(`afplay "${file}"`);
     else if (preferred === "say") tries.push(`say -f "${file}"`);
     else if (preferred === "ffplay") tries.push(`ffplay -nodisp -autoexit -loglevel quiet "${file}"`);
-    else if (preferred === "pwsh") tries.push(`powershell -NoProfile -Command (New-Object Media.SoundPlayer "${file}").PlaySync();`);
+    else if (preferred === "aplay") tries.push(`aplay -q "${file}"`);
+    else if (preferred === "pwsh") tries.push(`powershell -NoProfile -Command "$player = New-Object System.Media.SoundPlayer '${file}'; $player.PlaySync()"`);
   }
 
-  // macOS-first defaults, then cross-platform
-  tries.push(
-    `afplay "${file}"`,
-    `say -f "${file}"`,
-    `ffplay -nodisp -autoexit -loglevel quiet "${file}"`,
-    `powershell -NoProfile -Command (New-Object Media.SoundPlayer "${file}").PlaySync();`
-  );
+  // Platform-specific fallback order
+  if (platform === "macos") {
+    tries.push(
+      `afplay "${file}"`,
+      `ffplay -nodisp -autoexit -loglevel quiet "${file}"`
+    );
+  } else if (platform === "windows") {
+    tries.push(
+      `powershell -NoProfile -Command "$player = New-Object System.Media.SoundPlayer '${file}'; $player.PlaySync()"`,
+      `ffplay -nodisp -autoexit -loglevel quiet "${file}"`
+    );
+  } else {
+    // Linux
+    tries.push(
+      `aplay -q "${file}"`,
+      `ffplay -nodisp -autoexit -loglevel quiet "${file}"`,
+      `paplay "${file}"`
+    );
+  }
 
   for (const cmd of tries) {
     if (tryExec(cmd)) return true;
   }
   return false;
+}
+
+function speakText(phrase) {
+  const platform = detectPlatform();
+  const escaped = phrase.replace(/"/g, '\\"').replace(/'/g, "\\'");
+
+  if (platform === "macos") {
+    return tryExec(`say "${escaped}"`);
+  } else if (platform === "windows") {
+    const psCmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.Speak('${escaped}');"`;
+    return tryExec(psCmd);
+  } else {
+    // Linux - try espeak, then festival
+    if (tryExec(`espeak "${escaped}"`)) return true;
+    if (tryExec(`festival --tts <<< "${escaped}"`)) return true;
+    return false;
+  }
 }
 
 async function fetchTTS(phrase) {
@@ -366,7 +405,7 @@ async function main() {
   if (fs.existsSync(cachePath)) {
     if (!play(cachePath)) {
       // last resort: system TTS of text
-      if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
+      if (!speakText(phrase)) {
         console.log(phrase);
       }
     }
@@ -379,8 +418,8 @@ async function main() {
       const audio = await fetchTTS(phrase);
       fs.writeFileSync(cachePath, audio);
       if (!play(cachePath)) {
-        // fallback to direct say if player chain fails
-        if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
+        // fallback to system TTS if player chain fails
+        if (!speakText(phrase)) {
           console.log(phrase);
         }
       }
@@ -391,20 +430,8 @@ async function main() {
   }
 
   // 3) System TTS fallback
-  if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
-    // try ffplay via on-the-fly file using macOS say if available, else plain text
-    try {
-      const tmp = path.join(cacheDir, `${cacheKey}.aiff`);
-      if (tryExec(`say -o "${tmp}" --data-format=LEI16@22050 "${phrase.replace(/"/g, '\\"')}"`)) {
-        // convert via ffmpeg/ffplay if installed
-        if (!play(tmp)) console.log(phrase);
-        try { fs.unlinkSync(tmp); } catch {}
-      } else {
-        console.log(phrase);
-      }
-    } catch {
-      console.log(phrase);
-    }
+  if (!speakText(phrase)) {
+    console.log(phrase);
   }
   process.exit(0);
 }

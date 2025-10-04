@@ -4,6 +4,16 @@
 
 set -e
 
+# Get the script directory (absolute path)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Verify we're in the correct directory
+if [ ! -f "$SCRIPT_DIR/bin/cc-voice" ]; then
+    echo "❌ Error: Could not find bin/cc-voice"
+    echo "   Please run this script from the JARVIS Voice repository root"
+    exit 1
+fi
+
 echo "🎙️  JARVIS Voice System Installer"
 echo "=================================="
 echo ""
@@ -37,9 +47,20 @@ mkdir -p "$INSTALL_DIR"
 
 # Copy cc-voice script
 echo "📦 Installing cc-voice script..."
-cp bin/cc-voice "$INSTALL_DIR/cc-voice"
+cp "$SCRIPT_DIR/bin/cc-voice" "$INSTALL_DIR/cc-voice"
 chmod +x "$INSTALL_DIR/cc-voice"
-echo "✓ Installed to: $INSTALL_DIR/cc-voice"
+
+# On Windows, also create a .cmd wrapper for proper stdin handling
+if [[ "$OS" == "windows" ]]; then
+    cat > "$INSTALL_DIR/cc-voice.cmd" << 'CMDEOF'
+@echo off
+REM JARVIS Voice System - Windows wrapper for cc-voice
+node "%~dp0cc-voice" %*
+CMDEOF
+    echo "✓ Installed to: $INSTALL_DIR/cc-voice and cc-voice.cmd"
+else
+    echo "✓ Installed to: $INSTALL_DIR/cc-voice"
+fi
 echo ""
 
 # Check if directory is in PATH
@@ -67,28 +88,43 @@ if [ -f "$CLAUDE_SETTINGS_FILE" ]; then
     if grep -q '"hooks"' "$CLAUDE_SETTINGS_FILE"; then
         echo "⚠️  Hooks already exist in your settings!"
         echo "   Manual merge required. Your hooks config template is in:"
-        echo "   config/claude-settings-hooks.json"
+        echo "   $SCRIPT_DIR/config/claude-settings-hooks.json"
         echo ""
         echo "   Backup saved at: ${CLAUDE_SETTINGS_FILE}.backup"
         echo ""
     else
         echo "🔧 Merging hooks into existing settings..."
-        # Use jq to merge if available
-        if command -v jq &> /dev/null; then
-            jq -s '.[0] * .[1]' "$CLAUDE_SETTINGS_FILE" config/claude-settings-hooks.json > "${CLAUDE_SETTINGS_FILE}.tmp"
-            mv "${CLAUDE_SETTINGS_FILE}.tmp" "$CLAUDE_SETTINGS_FILE"
-            echo "✓ Hooks merged successfully"
+        # Use node to update settings (works on all platforms)
+        if command -v node &> /dev/null; then
+            node "$SCRIPT_DIR/update-hooks.cjs"
+            echo "✓ Hooks merged successfully with platform-compatible paths"
         else
-            echo "⚠️  jq not found - manual merge required"
-            echo "   Copy hooks from: config/claude-settings-hooks.json"
-            echo "   To: $CLAUDE_SETTINGS_FILE"
+            # Fallback to jq if node not available
+            if command -v jq &> /dev/null; then
+                jq -s '.[0] * .[1]' "$CLAUDE_SETTINGS_FILE" "$SCRIPT_DIR/config/claude-settings-hooks.json" > "${CLAUDE_SETTINGS_FILE}.tmp"
+                mv "${CLAUDE_SETTINGS_FILE}.tmp" "$CLAUDE_SETTINGS_FILE"
+                echo "✓ Hooks merged (may need manual path updates on Windows)"
+            else
+                echo "⚠️  Neither node nor jq found - manual merge required"
+                echo "   Run: node $SCRIPT_DIR/update-hooks.cjs"
+                echo "   Or copy hooks from: $SCRIPT_DIR/config/claude-settings-hooks.json"
+            fi
         fi
         echo ""
     fi
 else
     echo "📝 Creating new Claude settings with hooks..."
-    cp config/claude-settings-hooks.json "$CLAUDE_SETTINGS_FILE"
-    echo "✓ Settings created at: $CLAUDE_SETTINGS_FILE"
+
+    # Use node to create settings with proper paths
+    if command -v node &> /dev/null; then
+        node "$SCRIPT_DIR/update-hooks.cjs"
+        echo "✓ Settings created at: $CLAUDE_SETTINGS_FILE"
+    else
+        # Fallback to direct copy if node not available
+        cp "$SCRIPT_DIR/config/claude-settings-hooks.json" "$CLAUDE_SETTINGS_FILE"
+        echo "⚠️  Settings created, but may need manual path updates on Windows"
+        echo "   Run: node $SCRIPT_DIR/update-hooks.cjs"
+    fi
     echo ""
 fi
 
