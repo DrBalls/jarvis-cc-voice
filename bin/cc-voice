@@ -1,0 +1,312 @@
+#!/usr/bin/env node
+// cc-voice — Claude Code voice hook with per-event phrases, overrides, caching, and fallbacks.
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
+import { execSync } from "node:child_process";
+
+// ---------- read hook payload ----------
+let payload = {};
+try {
+  const raw = fs.readFileSync(0, "utf8");
+  payload = raw ? JSON.parse(raw) : {};
+} catch (_) {
+  payload = {};
+}
+
+// ---------- derive event context ----------
+const name = payload.hook_event_name || "Unknown";
+const tool = payload.tool_name || "";
+const desc =
+  payload?.tool_input?.description ||
+  payload?.message ||
+  "";
+const toolInput = payload?.tool_input || {};
+const toolResponse = payload?.tool_response || {};
+const isPreEvent = name === "PreToolUse";
+const isPostEvent = name === "PostToolUse";
+
+// ---------- smart context detection ----------
+function detectContext() {
+  const descLower = desc.toLowerCase();
+  const command = toolInput?.command || "";
+  const commandLower = command.toLowerCase();
+
+  // Git operations - check command first, then description
+  if (tool === "Bash") {
+    // Git commit
+    if (commandLower.includes("git commit") || descLower.includes("git commit") || descLower.includes("committing")) {
+      return isPreEvent ? "Committing changes to repository" : "Code committed to repository";
+    }
+    // Git push
+    if (commandLower.includes("git push") || descLower.includes("git push") || descLower.includes("pushing")) {
+      return isPreEvent ? "Pushing to remote repository" : "Changes pushed to remote";
+    }
+    // Git pull
+    if (commandLower.includes("git pull") || descLower.includes("git pull") || descLower.includes("pulling")) {
+      return isPreEvent ? "Pulling from remote repository" : "Repository synchronized";
+    }
+    // Git status/diff/log (read operations)
+    if (commandLower.match(/git\s+(status|diff|log|show)/)) {
+      return isPreEvent ? "Querying repository status" : "Repository query complete";
+    }
+    // Git add
+    if (commandLower.includes("git add")) {
+      return isPreEvent ? "Staging changes" : "Changes staged";
+    }
+  }
+
+  // Test execution
+  if (tool === "Bash" && (commandLower.match(/\b(npm|yarn|bun|pnpm)\s+(test|t)\b/) ||
+      commandLower.match(/\b(pytest|jest|vitest|mocha|cargo test)\b/) ||
+      descLower.includes("test"))) {
+    if (isPostEvent) {
+      // Check for failure indicators in output
+      const output = String(toolResponse?.output || "");
+      if (output.match(/\bfail(ed|ure|s)?\b/i) || output.includes("✗") || output.includes("×")) {
+        return "Test suite execution complete. Failures detected";
+      }
+      return "Test suite execution complete. All tests passed";
+    }
+    return "Initiating test suite execution";
+  }
+
+  // Build operations
+  if (tool === "Bash" && (commandLower.match(/\b(npm|yarn|bun|pnpm)\s+(run\s+)?build\b/) ||
+      commandLower.match(/\b(make|cargo build|gradle build)\b/) ||
+      descLower.includes("build"))) {
+    if (isPostEvent) {
+      const output = String(toolResponse?.output || "");
+      if (output.match(/\berror\b/i) || output.match(/\bfail/i)) {
+        return "Build failed. Review errors";
+      }
+      return "Build completed successfully";
+    }
+    return "Initiating build process";
+  }
+
+  return null;
+}
+
+// ---------- CLI/env overrides ----------
+const argv = process.argv;
+const argAt = (flag) => {
+  const i = argv.indexOf(flag);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+
+const phraseFromArgs = (() => {
+  const i = argv.indexOf("--phrase");
+  return i >= 0 ? argv.slice(i + 1).filter(t => !t.startsWith("--")).join(" ").trim() : "";
+})();
+
+const phraseFromEnv = process.env.VOICE_PHRASE || "";
+const voiceFromArgs = argAt("--voice-id") || "";
+const modelFromArgs = argAt("--model-id") || "";
+const playbackFromArgs = argAt("--player") || ""; // "afplay" | "say" | "ffplay" | "pwsh"
+
+// ---------- tool-specific phrases ----------
+function getToolPhrase() {
+  // Check for smart context first
+  const contextPhrase = detectContext();
+  if (contextPhrase) return contextPhrase;
+
+  // Tool-specific phrases
+  if (tool === "Edit" || tool === "MultiEdit" || tool === "Write") {
+    return isPreEvent ? `Initiating ${tool} operation` : `File ${tool === "Write" ? "created" : "modified"} successfully`;
+  }
+  if (tool === "Read") {
+    return isPreEvent ? "Retrieving file contents" : "File retrieved and analyzed";
+  }
+  if (tool === "Bash") {
+    return isPreEvent ? "Executing command" : "Command executed successfully";
+  }
+  if (tool === "Grep" || tool === "Glob") {
+    return isPreEvent ? "Searching codebase" : "Search complete";
+  }
+  if (tool === "Task") {
+    const subagentType = toolInput?.subagent_type || "";
+    if (subagentType) {
+      // Convert kebab-case or snake_case to readable format
+      const readableType = subagentType
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, l => l.toUpperCase());
+      return isPreEvent
+        ? `Launching ${readableType} agent`
+        : `${readableType} agent task completed`;
+    }
+    return isPreEvent ? "Launching specialized agent" : "Agent task completed";
+  }
+
+  return null;
+}
+
+// ---------- default event phrases ----------
+const autoText = (() => {
+  if (name === "Stop") return "Response cycle concluded. Awaiting further instruction.";
+  if (name === "SubagentStop") return "Auxiliary module has completed its assignment. Systems standing by.";
+  if (name === "Notification") return desc || "Your immediate attention is required. A situation awaits your command.";
+  if (name === "PreToolUse" || name === "PostToolUse") {
+    const toolPhrase = getToolPhrase();
+    if (toolPhrase) return toolPhrase;
+    return `${tool || "Tool"} ${isPreEvent ? "initiating" : "completed"}`;
+  }
+  return `Event ${name} detected.`;
+})();
+
+// ---------- final phrase ----------
+const text = (phraseFromArgs || phraseFromEnv || autoText).trim();
+
+// ---------- ElevenLabs config ----------
+const apiKey = process.env.ELEVENLABS_API_KEY || "";
+
+// Voice selection based on event type and context
+function selectVoice() {
+  if (voiceFromArgs) return voiceFromArgs;
+
+  const contextPhrase = detectContext();
+
+  // Error/failure voice (more serious tone)
+  if (contextPhrase && (contextPhrase.includes("fail") || contextPhrase.includes("error"))) {
+    return process.env.ELEVENLABS_VOICE_ERROR || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB"; // Adam (serious)
+  }
+
+  // Success voice (confident tone)
+  if (isPostEvent && !contextPhrase?.includes("fail")) {
+    return process.env.ELEVENLABS_VOICE_SUCCESS || process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1"; // default
+  }
+
+  // PreToolUse voice (slightly different for variety)
+  if (isPreEvent) {
+    return process.env.ELEVENLABS_VOICE_PRE || process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1";
+  }
+
+  // Notification voice (alert tone)
+  if (name === "Notification") {
+    return process.env.ELEVENLABS_VOICE_ALERT || process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL"; // Bella (urgent)
+  }
+
+  return process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1";
+}
+
+const voice = selectVoice();
+const model = modelFromArgs || process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5";
+
+// ---------- simple cache ----------
+const cacheDir = path.join(os.tmpdir(), "cc-voice-cache");
+try { fs.mkdirSync(cacheDir, { recursive: true }); } catch {}
+const cacheKey = crypto.createHash("sha1").update([text, voice, model].join("|")).digest("hex");
+const cachePath = path.join(cacheDir, `${cacheKey}.mp3`);
+
+// ---------- playback helpers ----------
+function tryExec(cmd) {
+  try { execSync(cmd, { stdio: "ignore" }); return true; } catch { return false; }
+}
+function play(file) {
+  const preferred = playbackFromArgs || process.env.CC_VOICE_PLAYER || "";
+  const tries = [];
+
+  if (preferred) {
+    if (preferred === "afplay") tries.push(`afplay "${file}"`);
+    else if (preferred === "say") tries.push(`say -f "${file}"`);
+    else if (preferred === "ffplay") tries.push(`ffplay -nodisp -autoexit -loglevel quiet "${file}"`);
+    else if (preferred === "pwsh") tries.push(`powershell -NoProfile -Command (New-Object Media.SoundPlayer "${file}").PlaySync();`);
+  }
+
+  // macOS-first defaults, then cross-platform
+  tries.push(
+    `afplay "${file}"`,
+    `say -f "${file}"`,
+    `ffplay -nodisp -autoexit -loglevel quiet "${file}"`,
+    `powershell -NoProfile -Command (New-Object Media.SoundPlayer "${file}").PlaySync();`
+  );
+
+  for (const cmd of tries) {
+    if (tryExec(cmd)) return true;
+  }
+  return false;
+}
+
+async function fetchTTS(phrase) {
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voice}`;
+  const body = {
+    text: phrase,
+    model_id: model,
+    // voice_settings optional; omit for defaults or add if you prefer:
+    // voice_settings: { stability: 0.4, similarity_boost: 0.8 }
+  };
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "xi-api-key": apiKey,
+      "Content-Type": "application/json",
+      "Accept": "audio/mpeg"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const code = resp.status;
+    // write a brief error to stderr for diagnosis, then signal caller to fallback
+    console.error(`[cc-voice] ElevenLabs HTTP ${code}`);
+    throw new Error(String(code));
+  }
+  const buf = Buffer.from(await resp.arrayBuffer());
+  return buf;
+}
+
+async function main() {
+  // if phrase is empty, avoid silent calls
+  const phrase = text || "Notification.";
+
+  // 1) try cache
+  if (fs.existsSync(cachePath)) {
+    if (!play(cachePath)) {
+      // last resort: system TTS of text
+      if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
+        console.log(phrase);
+      }
+    }
+    process.exit(0);
+  }
+
+  // 2) ElevenLabs path if key exists
+  if (apiKey) {
+    try {
+      const audio = await fetchTTS(phrase);
+      fs.writeFileSync(cachePath, audio);
+      if (!play(cachePath)) {
+        // fallback to direct say if player chain fails
+        if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
+          console.log(phrase);
+        }
+      }
+      process.exit(0);
+    } catch {
+      // fall through to system TTS
+    }
+  }
+
+  // 3) System TTS fallback
+  if (!tryExec(`say "${phrase.replace(/"/g, '\\"')}"`)) {
+    // try ffplay via on-the-fly file using macOS say if available, else plain text
+    try {
+      const tmp = path.join(cacheDir, `${cacheKey}.aiff`);
+      if (tryExec(`say -o "${tmp}" --data-format=LEI16@22050 "${phrase.replace(/"/g, '\\"')}"`)) {
+        // convert via ffmpeg/ffplay if installed
+        if (!play(tmp)) console.log(phrase);
+        try { fs.unlinkSync(tmp); } catch {}
+      } else {
+        console.log(phrase);
+      }
+    } catch {
+      console.log(phrase);
+    }
+  }
+  process.exit(0);
+}
+
+main();

@@ -1,0 +1,152 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Edit|MultiEdit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Read$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^(Grep|Glob)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Task$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Edit|MultiEdit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Read$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^(Grep|Glob)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "^Task$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": []
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": ["--phrase", "Session ended. All systems offline."]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": ["--phrase", "Response cycle concluded. Awaiting further instruction."]
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": ["--phrase", "Auxiliary module has completed its assignment. Systems standing by."]
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cc-voice",
+            "args": ["--phrase", "Your immediate attention is required. A situation awaits your command."]
+          }
+        ]
+      }
+    ]
+  }
+}

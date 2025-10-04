@@ -1,0 +1,33 @@
+{
+  "name": "jarvis-voice-claude",
+  "version": "1.0.0",
+  "description": "Intelligent voice notification system for Claude Code with context-aware phrases and dynamic voice selection",
+  "type": "module",
+  "scripts": {
+    "install-hooks": "./install.sh",
+    "test": "node bin/cc-voice --phrase 'Testing JARVIS voice system'"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "voice",
+    "tts",
+    "hooks",
+    "jarvis",
+    "elevenlabs",
+    "ai-voice"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/jarvis-voice-claude.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/jarvis-voice-claude/issues"
+  },
+  "homepage": "https://github.com/yourusername/jarvis-voice-claude#readme"
+}
