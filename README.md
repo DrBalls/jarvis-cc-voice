@@ -8,7 +8,7 @@ An intelligent voice notification system that provides real-time audio feedback 
 
 ```bash
 git clone https://github.com/yourusername/jarvis-voice-claude.git
-cd jarvis-voice-claude
+cd jarvis-cc-voice
 ./install.sh
 ```
 
