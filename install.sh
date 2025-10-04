@@ -63,6 +63,17 @@ else
 fi
 echo ""
 
+# Install bundled voices
+VOICES_INSTALL_DIR="${HOME}/.local/share/cc-voice/voices"
+if [ -d "$SCRIPT_DIR/voices" ]; then
+    echo "🎙️  Installing pre-bundled voice files..."
+    mkdir -p "$VOICES_INSTALL_DIR"
+    cp -r "$SCRIPT_DIR/voices/"* "$VOICES_INSTALL_DIR/"
+    echo "✓ Installed $(ls "$VOICES_INSTALL_DIR" | wc -l | tr -d ' ') voice files"
+    echo "✓ Voices installed to: $VOICES_INSTALL_DIR"
+    echo ""
+fi
+
 # Check if directory is in PATH
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo "⚠️  Warning: $INSTALL_DIR is not in your PATH"

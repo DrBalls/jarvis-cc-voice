@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 // ---------- read hook payload ----------
 let payload = {};
@@ -295,10 +296,23 @@ const voice = selectVoice();
 const model = modelFromArgs || process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5";
 
 // ---------- simple cache ----------
+// Bundled voices directory (check installation location first, then repo location)
+const homeDir = os.homedir();
+const installedVoicesDir = path.join(homeDir, ".local", "share", "cc-voice", "voices");
+const scriptPath = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(scriptPath);
+const repoVoicesDir = path.join(scriptDir, "..", "voices");
+
+// Use installed voices if available, otherwise fall back to repo location (for development)
+const bundledVoicesDir = fs.existsSync(installedVoicesDir) ? installedVoicesDir : repoVoicesDir;
+
+// User cache directory in temp
 const cacheDir = path.join(os.tmpdir(), "cc-voice-cache");
 try { fs.mkdirSync(cacheDir, { recursive: true }); } catch {}
+
 const cacheKey = crypto.createHash("sha1").update([text, voice, model].join("|")).digest("hex");
 const cachePath = path.join(cacheDir, `${cacheKey}.mp3`);
+const bundledPath = path.join(bundledVoicesDir, `${cacheKey}.mp3`);
 
 // ---------- playback helpers ----------
 function tryExec(cmd) {
@@ -405,14 +419,11 @@ async function main() {
   // if phrase is empty, avoid silent calls
   const phrase = text || "Notification.";
 
-  // 1) try cache
-  if (fs.existsSync(cachePath)) {
-    const playSuccess = play(cachePath);
+  // 1) try bundled voices first (pre-generated, no API key needed)
+  if (fs.existsSync(bundledPath)) {
+    const playSuccess = play(bundledPath);
     if (!playSuccess) {
-      // DEBUG: Log playback failure (remove in production)
-      // console.error(`[cc-voice] Playback failed for cached file: ${cachePath}`);
-
-      // last resort: system TTS of text
+      // fallback to system TTS if player chain fails
       if (!speakText(phrase)) {
         console.log(phrase);
       }
@@ -420,16 +431,25 @@ async function main() {
     process.exit(0);
   }
 
-  // 2) ElevenLabs path if key exists
+  // 2) try user cache
+  if (fs.existsSync(cachePath)) {
+    const playSuccess = play(cachePath);
+    if (!playSuccess) {
+      // fallback to system TTS if player chain fails
+      if (!speakText(phrase)) {
+        console.log(phrase);
+      }
+    }
+    process.exit(0);
+  }
+
+  // 3) ElevenLabs path if key exists (generate new voice)
   if (apiKey) {
     try {
       const audio = await fetchTTS(phrase);
       fs.writeFileSync(cachePath, audio);
       const playSuccess = play(cachePath);
       if (!playSuccess) {
-        // DEBUG: Log playback failure
-        // console.error(`[cc-voice] Playback failed for new file: ${cachePath}`);
-
         // fallback to system TTS if player chain fails
         if (!speakText(phrase)) {
           console.log(phrase);
@@ -441,7 +461,7 @@ async function main() {
     }
   }
 
-  // 3) System TTS fallback
+  // 4) System TTS fallback
   if (!speakText(phrase)) {
     console.log(phrase);
   }

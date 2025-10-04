@@ -16,11 +16,20 @@ JARVIS Voice is an intelligent voice notification system for Claude Code that pr
    - Main voice engine that processes hook events from stdin
    - Detects tool types, commands, and context from hook payloads
    - Implements smart phrase generation based on operation type
+   - **Bundled voices first**: Checks pre-generated MP3s before API calls
    - Manages ElevenLabs API integration with local audio caching
    - Provides multi-platform audio playback fallback chain
    - Dynamic voice selection (success/error/pre/alert contexts)
 
-2. **`config/claude-settings-hooks.json`**
+2. **`voices/`** (Pre-generated audio files)
+   - 90 pre-bundled MP3 files for common operations
+   - **No API key required** for standard usage
+   - Includes all tool operations, git commands, tests, builds, docker, etc.
+   - Generated using 3 ElevenLabs voices (success/error/alert contexts)
+   - Copied to `~/.local/share/cc-voice/voices/` during installation
+   - Manifest file documents all included phrases
+
+3. **`config/claude-settings-hooks.json`**
    - Hook configuration template for `~/.claude/settings.json`
    - Defines matchers for all major Claude Code tools:
      - `PreToolUse`: Edit, Write, Read, Bash, Grep, Glob, Task
@@ -28,12 +37,20 @@ JARVIS Voice is an intelligent voice notification system for Claude Code that pr
      - Event hooks: Stop, SubagentStop, SessionEnd, Notification
    - Each hook invokes `cc-voice` script via command execution
 
-3. **`install.sh`**
+4. **`install.sh`**
    - Cross-platform automated installer (bash-based)
    - Copies `cc-voice` to `~/.local/bin/`
+   - Installs bundled voices to `~/.local/share/cc-voice/voices/`
    - Merges hooks into existing `~/.claude/settings.json` or creates new one
    - Optional ElevenLabs API key setup (writes to shell profile)
    - Creates backup of existing settings before modification
+
+5. **`scripts/generate-voices.js`**
+   - Development tool to regenerate bundled voices
+   - Requires ElevenLabs API key
+   - Catalogs all possible phrase variations
+   - Generates MP3 files with appropriate voice IDs
+   - Creates manifest.json documenting generation metadata
 
 ### Voice System Logic
 

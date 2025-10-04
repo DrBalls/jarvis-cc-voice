@@ -19,7 +19,7 @@ Restart Claude Code and start coding with voice feedback!
 - **Node.js** (v16 or higher)
 - **Claude Code** (latest version)
 - **Windows only**: FFmpeg (for MP3 playback) - Install with: `winget install --id=Gyan.FFmpeg`
-- **Optional**: ElevenLabs API key for premium AI voices (falls back to system TTS)
+- **Optional**: ElevenLabs API key for generating custom phrases (90 common phrases pre-bundled)
 
 ## 🚀 Installation
 
@@ -31,16 +31,21 @@ Restart Claude Code and start coding with voice feedback!
 
 The installer will:
 1. Install the `cc-voice` script to `~/.local/bin`
-2. Configure Claude Code hooks in `~/.claude/settings.json`
-3. Optionally set up ElevenLabs API key
-4. Create a backup of existing settings
+2. Install 90 pre-generated voice files (no API key needed!)
+3. Configure Claude Code hooks in `~/.claude/settings.json`
+4. Optionally set up ElevenLabs API key for custom phrases
+5. Create a backup of existing settings
 
 ### Manual Installation
 
-1. Copy the voice script:
+1. Copy the voice script and bundled voices:
    ```bash
    cp bin/cc-voice ~/.local/bin/cc-voice
    chmod +x ~/.local/bin/cc-voice
+
+   # Copy bundled voices
+   mkdir -p ~/.local/share/cc-voice/voices
+   cp -r voices/* ~/.local/share/cc-voice/voices/
    ```
 
 2. Add hooks to your `~/.claude/settings.json`:
@@ -100,7 +105,19 @@ export ELEVENLABS_VOICE_PRE="your-voice-id"
 export ELEVENLABS_VOICE_ALERT="your-voice-id"
 ```
 
-### 5. Intelligent Caching
+### 5. Pre-Bundled Voices
+JARVIS now includes 90 pre-generated voice announcements for all common operations, **no API key required**! This includes:
+- All tool operations (Edit, Read, Write, Bash, Grep, Glob, Task)
+- Git operations (commit, push, pull, status, add)
+- Test and build execution with pass/fail detection
+- Package manager operations (install, start, dev, build, test)
+- File and directory operations
+- Docker commands
+- Process and network operations
+
+**Custom phrases**: If you use the ElevenLabs API key, new custom phrases will be generated and cached automatically.
+
+### 6. Intelligent Caching
 Audio files are cached locally for instant playback of repeated phrases, reducing API calls and latency.
 
 ## Configuration
@@ -143,12 +160,12 @@ The script automatically:
 
 Run `./demo.sh` to hear all the different voice announcements in action!
 
-## Requirements
+## System Requirements
 
-- Claude Code
-- Node.js (for cc-voice script)
-- ElevenLabs API key (optional, falls back to macOS `say` command)
-- macOS (for `afplay` and `say` commands)
+- **Claude Code** (latest version)
+- **Node.js** v16+ (for cc-voice script)
+- **macOS/Linux/Windows** (cross-platform support)
+- **Optional**: ElevenLabs API key (90 phrases pre-bundled, no key needed for standard usage)
 
 ## Environment Variables
 
