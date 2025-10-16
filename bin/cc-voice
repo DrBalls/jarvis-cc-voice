@@ -274,6 +274,11 @@ function selectVoice() {
     return process.env.ELEVENLABS_VOICE_ERROR || "pNInz6obpgDQGcFmaJgB"; // Adam (serious)
   }
 
+  // Alert voice for Stop, SubagentStop, and Notification events
+  if (name === "Stop" || name === "SubagentStop" || name === "Notification") {
+    return process.env.ELEVENLABS_VOICE_ALERT || "EXAVITQu4vr4xnSDxMaL"; // Bella (urgent)
+  }
+
   // Success voice (confident tone)
   if (isPostEvent && !contextPhrase?.includes("fail")) {
     return process.env.ELEVENLABS_VOICE_SUCCESS || "ZwQsH4li5bkOUTP3m3d1"; // default
@@ -282,11 +287,6 @@ function selectVoice() {
   // PreToolUse voice (slightly different for variety)
   if (isPreEvent) {
     return process.env.ELEVENLABS_VOICE_PRE || "ZwQsH4li5bkOUTP3m3d1";
-  }
-
-  // Notification voice (alert tone)
-  if (name === "Notification") {
-    return process.env.ELEVENLABS_VOICE_ALERT || "EXAVITQu4vr4xnSDxMaL"; // Bella (urgent)
   }
 
   return "ZwQsH4li5bkOUTP3m3d1";
