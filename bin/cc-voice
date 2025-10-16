@@ -271,25 +271,25 @@ function selectVoice() {
 
   // Error/failure voice (more serious tone)
   if (contextPhrase && (contextPhrase.includes("fail") || contextPhrase.includes("error"))) {
-    return process.env.ELEVENLABS_VOICE_ERROR || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB"; // Adam (serious)
+    return process.env.ELEVENLABS_VOICE_ERROR || "pNInz6obpgDQGcFmaJgB"; // Adam (serious)
   }
 
   // Success voice (confident tone)
   if (isPostEvent && !contextPhrase?.includes("fail")) {
-    return process.env.ELEVENLABS_VOICE_SUCCESS || process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1"; // default
+    return process.env.ELEVENLABS_VOICE_SUCCESS || "ZwQsH4li5bkOUTP3m3d1"; // default
   }
 
   // PreToolUse voice (slightly different for variety)
   if (isPreEvent) {
-    return process.env.ELEVENLABS_VOICE_PRE || process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1";
+    return process.env.ELEVENLABS_VOICE_PRE || "ZwQsH4li5bkOUTP3m3d1";
   }
 
   // Notification voice (alert tone)
   if (name === "Notification") {
-    return process.env.ELEVENLABS_VOICE_ALERT || process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL"; // Bella (urgent)
+    return process.env.ELEVENLABS_VOICE_ALERT || "EXAVITQu4vr4xnSDxMaL"; // Bella (urgent)
   }
 
-  return process.env.ELEVENLABS_VOICE_ID || "ZwQsH4li5bkOUTP3m3d1";
+  return "ZwQsH4li5bkOUTP3m3d1";
 }
 
 const voice = selectVoice();
